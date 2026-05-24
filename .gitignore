@@ -1,0 +1,53 @@
+# ============================================================
+# MATLAB / Octave artefacts
+# ============================================================
+*.asv
+*.m~
+*.mat
+*.mexw32
+*.mexw64
+*.mexa64
+*.mexmaci64
+*.mexmaca64
+*.mlx.autosave
+slprj/
+sccprj/
+codegen/
+octave-workspace
+octave-core
+
+# ============================================================
+# OS junk
+# ============================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ============================================================
+# Editor / IDE
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+
+# ============================================================
+# plots/*.png ARE tracked (deliverable outputs).
+# Uncomment the line below ONLY if you want to stop tracking them:
+# ============================================================
+# plots/*.png
