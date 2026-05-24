@@ -54,7 +54,7 @@ Problems are added **one at a time** in this exact order:
 ## 3. Status Tracker
 
 - [x] `01-pid-control/problem1_conveyor_speed.m`
-- [ ] `01-pid-control/problem2_carbonator_pressure.m`
+- [x] `01-pid-control/problem2_carbonator_pressure.m`
 - [ ] `01-pid-control/problem3_cip_tank_temperature.m`
 - [ ] `01-pid-control/problem4_filler_valve_nonlinear.m`
 - [ ] `01-pid-control/problem5_coupled_tanks_mimo.m`
@@ -74,7 +74,7 @@ Problems are added **one at a time** in this exact order:
 - [ ] `04-feedforward-control/problem4_dynamic_ff_leadlag.m`
 - [ ] `04-feedforward-control/problem5_multivariable_ff_blender.m`
 
-**Progress: 1 / 20**
+**Progress: 2 / 20**
 
 ---
 
