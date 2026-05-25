@@ -19,7 +19,9 @@ clear; clc; close all;
 %                  stiction behaviour clearly visible.
 % Difficulty     : HARD
 % Plant TF       : G_lin(s) = K / (tau*s + 1)   [linear part]
-%                  K            = 1.2   mL/s per % valve opening
+%                  K            = 15.0  mL/s per % valve opening
+%                                 (max flow ~1500 mL/s at 100 %,
+%                                  ~20 % headroom above 1250 mL/s SP)
 %                  tau          = 0.15  s         valve dynamics
 %                  Stiction band   = 2.0 %        stem sticks until
 %                                    |u_cmd - u_stem| exceeds band
@@ -41,7 +43,7 @@ if ~exist(plot_dir, 'dir'); mkdir(plot_dir); end
 % =========================================================================
 % Plant parameters
 % =========================================================================
-K              = 1.2;    % mL/s per % valve opening
+K              = 15.0;   % mL/s per % valve opening  (max 1500 mL/s)
 tau            = 0.15;   % s  valve first-order time constant
 stiction_band  = 2.0;    % %  stem motion dead-band
 slip_overshoot = 1.0;    % %  overshoot on break-away from stiction
@@ -49,28 +51,33 @@ slip_overshoot = 1.0;    % %  overshoot on break-away from stiction
 % =========================================================================
 % Controller gains  (hand-tuned -- identical for both variants)
 % =========================================================================
-Kp = 0.08;
-Ki = 0.35;
-Kd = 0.008;
+Kp = 0.012;
+Ki = 0.05;
+Kd = 0.0008;
 
 % =========================================================================
-% Time vector and setpoint
+% Time vector and base setpoint
 % =========================================================================
-dt = 0.001;              % s
-t  = 0:dt:3;             % 3 s simulation
-N  = numel(t);
+dt      = 0.001;         % s
+t       = 0:dt:1.5;      % 1.5 s simulation
+N       = numel(t);
 
-sp           = ones(1, N) .* (500/0.4);   % 1250 mL/s flow target
-sp(t < 0.05) = 0;                          % valve closed before bottle trigger
+sp_base           = ones(1, N) .* (500/0.4);  % 1250 mL/s fill-rate target
+sp_base(t < 0.05) = 0;                         % valve closed before bottle trigger
 
 % =========================================================================
 % Manual time-stepping simulation  -- both variants
 % =========================================================================
-y_all    = zeros(2, N);    % flow rate traces
-stem_all = zeros(2, N);    % valve stem position traces
+y_all        = zeros(2, N);
+stem_all     = zeros(2, N);
+vol_all      = zeros(2, N);
+sp_all       = zeros(2, N);   % save the per-variant sp (includes closure)
+fill_idx_all = N * ones(1, 2);
 
 for variant = 1:2
-    y        = zeros(1, N);
+    sp     = sp_base;          % fresh copy -- will be modified at fill target
+    y      = zeros(1, N);
+    cumvol = zeros(1, N);
     stem_log = zeros(1, N);
     integ    = 0;
     e_prev   = 0;
@@ -104,25 +111,47 @@ for variant = 1:2
         % Valve linear dynamics  (forward Euler)
         y(k) = y(k-1) + (dt/tau) * (K * u_stem - y(k-1));
 
+        % Running cumulative volume (Riemann sum)
+        cumvol(k) = cumvol(k-1) + y(k) * dt;
+
         stem_log(k) = u_stem;
         e_prev      = e;
+
+        % Close valve once target volume is reached
+        if cumvol(k) >= 500 && fill_idx_all(variant) == N
+            fill_idx_all(variant) = k;
+            if k < N
+                sp(k+1:end) = 0;   % signal valve to close
+            end
+        end
     end
 
     y_all(variant, :)    = y;
     stem_all(variant, :) = stem_log;
+    vol_all(variant, :)  = cumvol;
+    sp_all(variant, :)   = sp;
 end
 
 % Extract individual variant results
-y_naive    = y_all(1, :);
-y_anti     = y_all(2, :);
-stem_naive = stem_all(1, :);
-stem_anti  = stem_all(2, :);
+y_naive    = y_all(1, :);     y_anti     = y_all(2, :);
+stem_naive = stem_all(1, :);  stem_anti  = stem_all(2, :);
+vol_naive  = cumtrapz(t, y_naive);
+vol_anti   = cumtrapz(t, y_anti);
 
 % =========================================================================
-% Cumulative dispensed volume
+% Performance metrics  (window: [0.1 s, fill_complete_time])
 % =========================================================================
-vol_naive = cumtrapz(t, y_naive);
-vol_anti  = cumtrapz(t, y_anti);
+idx_start    = find(t >= 0.1, 1, 'first');
+stem_std_all = zeros(1, 2);
+sat_ms_all   = zeros(1, 2);
+
+for v = 1:2
+    fi  = fill_idx_all(v);
+    fi  = max(fi, idx_start + 1);        % guard: window must have >1 sample
+    seg = stem_all(v, idx_start:fi);
+    stem_std_all(v) = std(seg);
+    sat_ms_all(v)   = sum(seg >= 99.9) * dt * 1000;
+end
 
 % =========================================================================
 % Colour palette  (CLAUDE.md conventions)
@@ -137,10 +166,10 @@ neut_gray = [0.4  0.4  0.4];
 fig1 = figure('Position', [100 100 1000 600], 'Color', 'w');
 
 subplot(2, 1, 1);
-h1 = plot(t, sp,       '--k',       'LineWidth', 1.2);
+h1 = plot(t, sp_all(1,:),  '--k',           'LineWidth', 1.2);
 hold on;  grid on;
-h2 = plot(t, y_naive,  'Color', coke_red,  'LineWidth', 1.5);
-h3 = plot(t, y_anti,   'Color', proc_blue, 'LineWidth', 1.5);
+h2 = plot(t, y_naive,      'Color', coke_red,  'LineWidth', 1.5);
+h3 = plot(t, y_anti,       'Color', proc_blue, 'LineWidth', 1.5);
 xlabel('Time (s)');
 ylabel('Flow (mL/s)');
 title('Filler Valve Flow -- naive PID vs anti-stiction PID with dither');
@@ -188,16 +217,22 @@ saveas(fig2, fullfile(plot_dir, 'problem4_volume.png'));
 % Console output
 % =========================================================================
 fprintf('\n--- Problem 4: Filler valve nonlinear PID ---\n');
-fprintf('Plant:        K=%.1f  tau=%.2f s  (linear part)\n', K, tau);
+fprintf('Plant:        K=%.1f  tau=%.2f s  (linear part, max flow 1500 mL/s)\n', K, tau);
 fprintf('              Stiction band=%.1f %%  Slip jump=%.1f %%  (nonlinear part)\n', ...
         stiction_band, slip_overshoot);
-fprintf('Method:       Hand-tuned PID, both variants share Kp=%.3f, Ki=%.3f, Kd=%.4f\n', ...
-        Kp, Ki, Kd);
+fprintf('Method:       Hand-tuned PID, Kp=%.4f, Ki=%.4f, Kd=%.5f\n', Kp, Ki, Kd);
 fprintf('              Variant B adds 50 Hz, +/-0.5 %% anti-stiction dither.\n');
-fprintf('Naive PID:    Final volume = %.2f mL   (target 500, tolerance +/- 2)\n', ...
-        vol_naive(end));
-fprintf('Anti-stiction:Final volume = %.2f mL\n', vol_anti(end));
-fprintf('Note:         Anti-stiction keeps the stem moving through the\n');
-fprintf('              dead-band; the resulting limit-cycle elimination is\n');
-fprintf('              the lesson of this problem.\n');
+
+fprintf('Variant A (naive):\n');
+fprintf('   Final volume    = %.2f mL\n', vol_naive(end));
+fprintf('   Stem activity   = %.3f %% std deviation during steady fill\n', stem_std_all(1));
+fprintf('                     (high value = limit cycle present)\n');
+fprintf('   Saturation time = %.1f ms at 100 %%\n', sat_ms_all(1));
+
+fprintf('Variant B (anti-stiction):\n');
+fprintf('   Final volume    = %.2f mL\n', vol_anti(end));
+fprintf('   Stem activity   = %.3f %% std deviation during steady fill\n', stem_std_all(2));
+fprintf('                     (low value = smooth motion)\n');
+fprintf('   Saturation time = %.1f ms at 100 %%\n', sat_ms_all(2));
+
 fprintf('Plots saved to: %s\n\n', plot_dir);
