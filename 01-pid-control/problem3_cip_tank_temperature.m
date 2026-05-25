@@ -21,6 +21,23 @@ clear; clc; close all;
 %                  Wash hold:    +/- 1 degC during wash phase
 %                  Reject cold makeup-water inrush (-8 degC effective
 %                  output disturbance) at t = 350 s into wash cycle
+%
+%  DISTURBANCE-REJECTION OBSERVATION
+%  ---------------------------------
+%  The simulated -8 degC cold-water inrush produces a peak deviation
+%  of ~8 degC -- well outside the +/- 1 degC hold spec. This is NOT
+%  a tuning failure; it is a fundamental limit of single-loop PID on
+%  a plant with 15 s dead time + 120 s dominant lag fighting an
+%  instantaneous output disturbance. The control round-trip
+%  (RTD detection -> valve action -> jacket transfer -> bulk fluid
+%  response) is ~3 minutes; during that window, no PID gain can
+%  prevent the drop. Real plant mitigations:
+%    1. Feed-forward on inlet water temperature (see FF problem 1)
+%    2. Cascade with jacket-temperature inner loop (see Cascade
+%       problem 4 -- CIP heat exchanger)
+%    3. Slower makeup-water valve to spread the disturbance over
+%       minutes rather than seconds.
+%  The heat-up phase nonetheless meets all specs cleanly.
 % =========================================================
 
 % ---- plots/ folder auto-creation ----------------------------------------
