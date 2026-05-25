@@ -159,7 +159,10 @@ fprintf('             Overshoot=%.1f %%   Settling=%.1f s   Peak=%.3f bar\n', ..
 fprintf('SIMC:        Kp=%.4f  Ki=%.4f  (Ti=%.4f s)\n', Kp_simc, Ki_simc, Ti_simc);
 fprintf('             Overshoot=%.1f %%   Settling=%.1f s   Peak=%.3f bar\n', ...
         info_simc.Overshoot, info_simc.SettlingTime, info_simc.Peak);
-fprintf('Conclusion:  SIMC trades 2x slower settling for ~30x less\n');
-fprintf('             overshoot -- the only acceptable choice for a\n');
-fprintf('             safety-critical pressure loop.\n');
+fprintf('Note:        SIMC''s larger disturbance peak (~0.23 bar) is the\n');
+fprintf('             classical setpoint-vs-disturbance trade-off with single\n');
+fprintf('             PI -- still acceptable here (well below the 6 %% safety\n');
+fprintf('             margin), and the alternative (Cohen-Coon''s 78 %% setpoint\n');
+fprintf('             overshoot) would lift the relief valve. For applications\n');
+fprintf('             needing both, see 2-DOF PID.\n');
 fprintf('Plots saved to: %s\n\n', plot_dir);
